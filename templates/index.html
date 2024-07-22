@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Linear Regression Calculator</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        body {
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        th, td {
+            text-align: center;
+            padding: 8px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center">Regresi Linear</h1>
+        <form method="POST" action="/calculate">
+            <table>
+                <thead>
+                    <tr>
+                        <th>No</th>
+                        <th>X</th>
+                        <th>Y</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="dataTable">
+                    <tr>
+                        <td>1</td>
+                        <td><input type="number" name="x_values" step="any" required></td>
+                        <td><input type="number" name="y_values" step="any" required></td>
+                        <td><button type="button" class="btn btn-danger" onclick="deleteRow(this)">Hapus</button></td>
+                    </tr>
+                </tbody>
+            </table>
+            <button type="button" class="btn btn-primary" onclick="addRow()">Tambah Baris</button>
+            <button type="submit" class="btn btn-success">Hitung</button>
+            <button type="button" class="btn btn-warning" onclick="resetTable()">Reset</button>
+        </form>
+        {% if equation %}
+        <br>
+        <h2>Tabel Hasil:</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>No</th>
+                    <th>X</th>
+                    <th>Y</th>
+                    <th>X²</th>
+                    <th>Y²</th>
+                    <th>XY</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for i in range(x_values|length) %}
+                <tr>
+                    <td>{{ i+1 }}</td>
+                    <td>{{ x_values[i] }}</td>
+                    <td>{{ y_values[i] }}</td>
+                    <td>{{ x_values[i]**2 }}</td>
+                    <td>{{ y_values[i]**2 }}</td>
+                    <td>{{ x_values[i] * y_values[i] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="1"><strong>Σ</strong></td>
+                    <td><strong>{{ sum_x }}</strong></td>
+                    <td><strong>{{ sum_y }}</strong></td>
+                    <td><strong>{{ sum_x2 }}</strong></td>
+                    <td><strong>{{ sum_y2 }}</strong></td>
+                    <td><strong>{{ sum_xy }}</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+        <h2>Perhitungan:</h2>
+        <p>N = {{ n }}</p>
+        <p>ΣX = {{ sum_x }}</p>
+        <p>ΣY = {{ sum_y }}</p>
+        <p>ΣX² = {{ sum_x2 }}</p>
+        <p>ΣY² = {{ sum_y2 }}</p>
+        <p>ΣXY = {{ sum_xy }}</p>
+        <h3>Langkah-langkah:</h3>
+        <p>
+            $$ b = \frac{N \sum (X_i Y_i) - \sum X_i \sum Y_i}{N \sum X_i^2 - (\sum X_i)^2} = \frac{ {{n}} \times {{sum_xy}} - {{sum_x}} \times {{sum_y}} }{ {{n}} \times {{sum_x2}} - ({{sum_x}})^2 } = {{b}} $$
+        </p>
+        <p> $$ \Delta y^2 = \frac{1}{N-2}\left[\sum Y_i^2 - \frac{\sum X_i^2 (\sum Y_i)^2 - 2 \sum X_i \sum Y_i \sum (X_iY_i) + N (\sum X_iY_i)^2}{N \sum X_i^2 - (\sum X_i)^2}\right] $$
+        <p> $$ = \frac{1}{ {{n}}-2}\left[{{ sum_y2 }} - \frac{ {{ sum_x2 }} ({{ sum_y }})^2 - 2 \times {{ sum_x }} \times {{ sum_y }} \times {{ sum_xy }} + {{ n }} \times ({{ sum_xy }})^2}{ {{ n }} \times {{ sum_x2 }} - ({{ sum_x }})^2}\right] = {{delta_y2}} $$
+        <p>$$  \Delta y  = \sqrt{\Delta y^2} = \sqrt{ {{delta_y2}} } = {{delta_y}} $$ </p>
+        <p>$$  \Delta b  = \Delta y\sqrt{\frac{N}{N \sum X_i^2 - (\sum X_i)^2}} $$</p>
+        <p>$$   = {{delta_y}}\sqrt{\frac { {{ n }} }{ {{ n }} {{ sum_x2 }} - ({{ sum_x }})^2}} = {{ delta_b }} $$</p>
+        <p>$$ Pelaporan: {{ pelaporan }} $$</p>
+        <p>$$ TK = \left| 1 - \frac{\Delta b}{b} \right| \times 100\% $$</p>
+        <p>$$ TK = \left| 1 - \frac{ {{ delta_b }} }{ {{ b }} } \right| \times 100\% ={{ tk }}\% $$</p>
+        <h2>Grafik:</h2>
+        <img src="data:image/png;base64,{{ image_base64 }}" alt="Grafik" class="img-fluid">
+        {% endif %}
+        {% if error %}
+        <div class="alert alert-danger" role="alert">
+            {{ error }}
+        </div>
+        {% endif %}
+    </div>
+    <script>
+        function addRow() {
+            const table = document.getElementById("dataTable");
+            const rowCount = table.rows.length;
+            const row = table.insertRow(rowCount);
+            row.innerHTML = `
+                <td>${rowCount + 1}</td>
+                <td><input type="number" name="x_values" step="any" required></td>
+                <td><input type="number" name="y_values" step="any" required></td>
+                <td><button type="button" class="btn btn-danger" onclick="deleteRow(this)">Hapus</button></td>
+            `;
+        }
+
+        function deleteRow(button) {
+            const row = button.parentNode.parentNode;
+            row.parentNode.removeChild(row);
+        }
+
+        function resetTable() {
+            const table = document.getElementById("dataTable");
+            while (table.rows.length > 1) {
+                table.deleteRow(1);
+            }
+            table.rows[0].cells[1].getElementsByTagName("input")[0].value = "";
+            table.rows[0].cells[2].getElementsByTagName("input")[0].value = "";
+        }
+    </script>
+</body>
+</html>
